@@ -9,7 +9,6 @@ namespace Seam_Carving.Models
     {
         public double Energy;
         public Color Color;
-        public Color GrayColor;
         public bool IsSeamPixel;
         public int AbsoluteX;
         public int AbsoluteY;

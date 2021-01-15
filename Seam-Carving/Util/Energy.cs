@@ -8,12 +8,6 @@ using System.Text;
 
 namespace Seam_Carving.Util
 {
-    public enum Axis { X, Y };
-    public enum RGB { R, G, B };
-
-    /// <summary>
-    /// Energy class for calculating the energies of image pixels
-    /// </summary>
     public class Energy
     {
         private readonly Pixel[][] _initialPixels;
@@ -27,30 +21,31 @@ namespace Seam_Carving.Util
             _width = width;
             _height = height;
         }
+        
 
         /// <summary>
-        /// ComputeEnergy method for computing the energies of the pixels
+        /// ComputeVerticalEnergy method returns a 2D array of carved pixels with their energies
         /// </summary>
-        /// <param name="verticalDeletedCount">number of the deleted vertical seams till now</param>
-        /// <returns>An array of carved pixels</returns>
-        public Pixel[][] ComputeEnergy(int verticalDeletedCount)
+        /// <param name="verticalDeletedCount">Number of vertical seams deleted</param>
+        /// <returns>An array of vertically carved pixels with their energies</returns>
+        public Pixel[][] ComputeVerticalEnergy(int verticalDeletedCount)
         {
             Pixel[][] carvedPixels = Utility.Initialize2DArray<Pixel>(_width - verticalDeletedCount, _height);
 
             for (int i = 0; i < _height; i++)
             {
-                int index = 0;
+                int y = 0;
                 for (int j = 0; j < _width; j++)
                 {
-                    if (index < _width - verticalDeletedCount)
+                    if (y < _width - verticalDeletedCount)
                     {
-                        carvedPixels[i][index] = new Pixel();
+                        carvedPixels[i][y] = new Pixel();
                         while (_initialPixels[i][j].IsSeamPixel)
                             j++;
-                        carvedPixels[i][index].Color = _initialPixels[i][j].Color;
-                        carvedPixels[i][index].AbsoluteX = i;
-                        carvedPixels[i][index].AbsoluteY = j;
-                        index++;
+                        carvedPixels[i][y].Color = _initialPixels[i][j].Color;
+                        carvedPixels[i][y].AbsoluteX = i;
+                        carvedPixels[i][y].AbsoluteY = j;
+                        y++;
                     }
                 }
             }
@@ -62,8 +57,8 @@ namespace Seam_Carving.Util
             {
                 for (int j = 0; j < _width - verticalDeletedCount; j++)
                 {
-                    deltaXSquared = GetSquaredDeltaXY(j, i, Axis.X, verticalDeletedCount);
-                    deltaYSquared = GetSquaredDeltaXY(j, i, Axis.Y, verticalDeletedCount);
+                    deltaXSquared = GetSquaredDeltaXY(j, i, Axis.X, verticalDeletedCount, 0);
+                    deltaYSquared = GetSquaredDeltaXY(j, i, Axis.Y, verticalDeletedCount, 0);
                     carvedPixels[i][j].Energy = Math.Sqrt(deltaXSquared + deltaYSquared);
                 }
             }
@@ -73,24 +68,50 @@ namespace Seam_Carving.Util
 
 
         /// <summary>
-        /// GetSquaredDeltaXY method for calculating the DeltaX or DeltaY of pixel(x,y)
+        /// ComputeHorizontalEnergy method returns a 2D array of carved pixels with their energies
         /// </summary>
-        /// <param name="x"></param>
-        /// <param name="y"></param>
-        /// <param name="axis"></param>
-        /// <param name="vDeletedCount">Number of vertical seams deleted</param>
-        /// <param name="hDeletedCount">Number of horizontal seams deleted</param>
-        /// <returns>Squared DeltaX or DeltaY</returns>
-        public double GetSquaredDeltaXY(int x, int y, Axis axis, int vDeletedCount = 0, int hDeletedCount = 0)
+        /// <param name="horizontalDeletedCount">Number of horizontal seams deleted</param>
+        /// <returns>An array of horizontally carved pixels with their energies</returns>
+        public Pixel[][] ComputeHorizontalEnergy(int horizontalDeletedCount)
         {
-            double R = GetSquaredDifference(x, y, RGB.R, axis, vDeletedCount, hDeletedCount);
-            double G = GetSquaredDifference(x, y, RGB.G, axis, vDeletedCount, hDeletedCount);
-            double B = GetSquaredDifference(x, y, RGB.B, axis, vDeletedCount, hDeletedCount);
-            return (R + G + B);
+            Pixel[][] carvedPixels = Utility.Initialize2DArray<Pixel>(_width, _height - horizontalDeletedCount);
+
+            for (int j = 0; j < _width; j++)
+            {
+                int x = 0;  
+                for (int i = 0; i < _height; i++)
+                {
+                    if (x < _height - horizontalDeletedCount)
+                    {
+                        carvedPixels[x][j] = new Pixel();
+                        while (_initialPixels[i][j].IsSeamPixel)
+                            i++;
+                        carvedPixels[x][j].Color = _initialPixels[i][j].Color;
+                        carvedPixels[x][j].AbsoluteX = i;
+                        carvedPixels[x][j].AbsoluteY = j;
+                        x++;
+                    }
+                }
+            }
+
+            _carvedPixels = carvedPixels;
+
+            double deltaXSquared, deltaYSquared;
+            for (int j = 0; j < _width; j++)
+            {
+                for (int i = 0; i < _height - horizontalDeletedCount; i++)
+                {
+                    deltaXSquared = GetSquaredDeltaXY(j, i, Axis.X, 0, horizontalDeletedCount);
+                    deltaYSquared = GetSquaredDeltaXY(j, i, Axis.Y, 0, horizontalDeletedCount);
+                    carvedPixels[i][j].Energy = Math.Sqrt(deltaXSquared + deltaYSquared);
+                }
+            }
+
+            return carvedPixels;
         }
 
         /// <summary>
-        /// GetSquaredDifference method for calculating the squared R or G or B
+        /// GetSquaredDeltaXY method for calculating the squared deltaX or deltaY
         /// </summary>
         /// <param name="x"></param>
         /// <param name="y"></param>
@@ -98,15 +119,16 @@ namespace Seam_Carving.Util
         /// <param name="axis"></param>
         /// <param name="vDeletedCount">Number of vertical seams deleted</param>
         /// <param name="hDeletedCount">Number of horizontal seams deleted</param>
-        /// <returns>Squared Rx|Ry, Gx|Gy, Bx|By</returns>
-        public double GetSquaredDifference(int x, int y, RGB rgb, Axis axis, 
+        /// <returns>Squared deltaX or deltaY</returns>
+        public double GetSquaredDeltaXY(int x, int y, Axis axis, 
             int vDeletedCount = 0, int hDeletedCount = 0)
         {
             Color pre = GetPreviousColor(x, y, axis, vDeletedCount, hDeletedCount);
             Color next = GetNextColor(x, y, axis, vDeletedCount, hDeletedCount);
-            double difference = (rgb == RGB.R) ? next.R - pre.R :
-                (rgb == RGB.G) ? next.G - pre.G : next.B - pre.B;
-            return Math.Pow(difference, 2);
+            double SquaredR = Math.Pow(next.R - pre.R, 2);
+            double SquaredG = Math.Pow(next.G - pre.G, 2);
+            double SquaredB = Math.Pow(next.B - pre.B, 2);
+            return SquaredR + SquaredG + SquaredB;
         }
 
 
@@ -124,11 +146,17 @@ namespace Seam_Carving.Util
         {
             int width = _width - vDeletedCount;
             int height = _height - hDeletedCount;
-            return (axis == Axis.X) ?
-                ((Utility.ValidateCoordinate(x + 1, y, width, height)) ?
-                    _carvedPixels[y][x + 1].Color : Color.Black) :
-                ((Utility.ValidateCoordinate(x, y + 1, width, height)) ?
-                _carvedPixels[y + 1][x].Color : Color.Black);
+            if (axis == Axis.X)
+            {
+                return Utility.ValidateCoordinate(x + 1, y, width, height) ?
+                    _carvedPixels[y][x + 1].Color : Color.Black;
+
+            } 
+            else
+            {
+                return Utility.ValidateCoordinate(x, y + 1, width, height) ?
+                    _carvedPixels[y + 1][x].Color : Color.Black;
+            }
         }
 
         /// <summary>
@@ -146,11 +174,16 @@ namespace Seam_Carving.Util
             int width = _width - vDeletedCount;
             int height = _height - hDeletedCount;
 
-            return (axis == Axis.X) ?
-                ((Utility.ValidateCoordinate(x - 1, y, width, height)) ?
-                    _carvedPixels[y][x - 1].Color : Color.Black) :
-                ((Utility.ValidateCoordinate(x, y - 1, width, height)) ?
-                    _carvedPixels[y - 1][x].Color : Color.Black);
+            if (axis == Axis.X)
+            {
+                return Utility.ValidateCoordinate(x - 1, y, width, height) ?
+                    _carvedPixels[y][x - 1].Color : Color.Black;
+            } 
+            else
+            {
+                return Utility.ValidateCoordinate(x, y - 1, width, height) ?
+                    _carvedPixels[y - 1][x].Color : Color.Black;
+            }
         }
     }
 }

@@ -16,36 +16,38 @@ namespace Seam_Carving.Util
         }
 
         /// <summary>
-        /// FindSeam method for finding the seams of the image
+        /// FindVerticalSeam method for finding the vertical seams of the image
         /// </summary>
         /// <param name="carvedPixels"></param>
-        public void FindSeam(ref Pixel[][] carvedPixels)
+        public void FindVerticalSeam(ref Pixel[][] carvedPixels)
         {
             int width = carvedPixels[0].Length;
             int height = carvedPixels.Length;
-            SeamItem[][] seam = Utility.Initialize2DArray<SeamItem>(width, height);
+            SeamItem[][] seamTable = Utility.Initialize2DArray<SeamItem>(width, height);
 
             for (int i = 0; i < width; i++)
             {
-                seam[0][i] = new SeamItem()
+                seamTable[0][i] = new SeamItem()
                 {
                     Value = carvedPixels[0][i].Energy,
                     ParentIndex = -1,
                 };
             }
 
-            FindSeamValues(ref seam, carvedPixels);
-            (double min, int index) = FindMinimumIndex(seam[height - 1]);
-            Carve(carvedPixels, seam, index, height);
+            FindVerticalMinimumValues(ref seamTable, carvedPixels);
+            (double min, int index) = FindMinimumIndex(seamTable[height - 1]);
+            CarveVerticalSeam(carvedPixels, seamTable, index, height);
         }
 
 
+
+
         /// <summary>
-        /// FindSeamValues method finds the minimum values of the DP table
+        /// FindVerticalMinimumValues method finds the minimum values of the DP table vertically
         /// </summary>
-        /// <param name="seam"></param>
+        /// <param name="seamTable"></param>
         /// <param name="pixels"></param>
-        private void FindSeamValues(ref SeamItem[][] seam, Pixel[][] pixels)
+        private void FindVerticalMinimumValues(ref SeamItem[][] seamTable, Pixel[][] pixels)
         {
             int width = pixels[0].Length;
             int height = pixels.Length;
@@ -57,13 +59,13 @@ namespace Seam_Carving.Util
                 for (int j = 0; j < width; j++)
                 {
                     left = (Utility.ValidateCoordinate(j - 1, i - 1, width, height)) ?
-                            pixels[i][j].Energy + seam[i - 1][j - 1].Value : double.MaxValue;
+                            pixels[i][j].Energy + seamTable[i - 1][j - 1].Value : double.MaxValue;
                     top = (Utility.ValidateCoordinate(j, i - 1, width, height)) ?
-                            pixels[i][j].Energy + seam[i - 1][j].Value : double.MaxValue;
+                            pixels[i][j].Energy + seamTable[i - 1][j].Value : double.MaxValue;
                     right = (Utility.ValidateCoordinate(j + 1, i - 1, width, height)) ?
-                                pixels[i][j].Energy + seam[i - 1][j + 1].Value : double.MaxValue;
+                                pixels[i][j].Energy + seamTable[i - 1][j + 1].Value : double.MaxValue;
                     (min, index) = FindMinimumIndex(new double[] { left, top, right });
-                    seam[i][j] = new SeamItem()
+                    seamTable[i][j] = new SeamItem()
                     {
                         Value = min,
                         ParentIndex = j + index - 1
@@ -73,13 +75,13 @@ namespace Seam_Carving.Util
         }
 
         /// <summary>
-        /// Carve method carves the seams of the image
+        /// CarveVerticalSeam method carves the vertical seams of the image
         /// </summary>
         /// <param name="carvedPixels">Pixels of the carved image</param>
         /// <param name="seam">Seam table for finding the seam path to be deleted</param>
         /// <param name="minIndex">Minimum index of the pixel to deleted</param>
         /// <param name="height">Height of image</param>
-        public void Carve(Pixel[][] carvedPixels, SeamItem[][] seam, int minIndex, int height)
+        public void CarveVerticalSeam(Pixel[][] carvedPixels, SeamItem[][] seam, int minIndex, int height)
         {
             int x, y;
 
@@ -93,6 +95,86 @@ namespace Seam_Carving.Util
             }
         }
 
+        /// <summary>
+        /// FindHorizontalSeam method for finding the horizontal seams of the image
+        /// </summary>
+        /// <param name="carvedPixels"></param>
+        public void FindHorizontalSeam(ref Pixel[][] carvedPixels)
+        {
+            int width = carvedPixels[0].Length;
+            int height = carvedPixels.Length;
+            SeamItem[][] seamTable = Utility.Initialize2DArray<SeamItem>(width, height);
+
+            for (int i = 0; i < height; i++)
+            {
+                seamTable[i][0] = new SeamItem()
+                {
+                    Value = carvedPixels[i][0].Energy,
+                    ParentIndex = -1,
+                };
+            }
+
+            FindHorizontalMinimumValues(ref seamTable, carvedPixels);
+            SeamItem[] lastColumn = new SeamItem[height];
+            for (int i = 0; i < height; i++)
+                lastColumn[i] = seamTable[i][width - 1];
+
+            (double min, int index) = FindMinimumIndex(lastColumn);
+            CarveHorizontalSeam(carvedPixels, seamTable, index, width);
+        }
+
+
+        /// <summary>
+        /// FindHorizontalMinimumValues method finds the minimum values of the DP table horizontally
+        /// </summary>
+        /// <param name="seamTable"></param>
+        /// <param name="pixels"></param>
+        private void FindHorizontalMinimumValues(ref SeamItem[][] seamTable, Pixel[][] pixels)
+        {
+            int width = pixels[0].Length;
+            int height = pixels.Length;
+            double min;
+            int index;
+            double top, left, bottom;
+            for (int j = 1; j < width; j++)
+            {
+                for (int i = 0; i < height; i++)
+                {
+                    top = (Utility.ValidateCoordinate(j - 1, i - 1, width, height)) ?
+                            pixels[i][j].Energy + seamTable[i - 1][j - 1].Value : double.MaxValue;
+                    left = (Utility.ValidateCoordinate(j - 1, i, width, height)) ?
+                            pixels[i][j].Energy + seamTable[i][j - 1].Value : double.MaxValue;
+                    bottom = (Utility.ValidateCoordinate(j - 1, i + 1, width, height)) ?
+                                pixels[i][j].Energy + seamTable[i + 1][j - 1].Value : double.MaxValue;
+                    (min, index) = FindMinimumIndex(new double[] { top, left, bottom });
+                    seamTable[i][j] = new SeamItem()
+                    {
+                        Value = min,
+                        ParentIndex = i + index - 1
+                    };
+                }
+            }
+        }
+
+        /// <summary>
+        /// CarveHorizontalSeam method carves the horizontal seams of the image
+        /// </summary>
+        /// <param name="carvedPixels">Pixels of the carved image</param>
+        /// <param name="seam">Seam table for finding the seam path to be deleted</param>
+        /// <param name="minIndex">Minimum index of the pixel to deleted</param>
+        /// <param name="width">Height of image</param>
+        public void CarveHorizontalSeam(Pixel[][] carvedPixels, SeamItem[][] seam, int minIndex, int width)
+        {
+            int x, y;
+            for (int i = width - 1; i >= 0; i--)
+            {
+                x = carvedPixels[minIndex][i].AbsoluteX;
+                y = carvedPixels[minIndex][i].AbsoluteY;
+                _initialPixels[x][y].Color = Color.Red;
+                _initialPixels[x][y].IsSeamPixel = true;
+                minIndex = seam[minIndex][i].ParentIndex;
+            }
+        }
 
         /// <summary>
         /// FindMinimumIndex method for finding the SeamItem with the minimum value
